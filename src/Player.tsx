@@ -1,8 +1,11 @@
-import { Expand, Loader2, Minimize, Pause, Play, Volume2, VolumeOff } from 'lucide-react';
+import { Captions, Expand, Loader2, Minimize, Pause, Play, Volume2, VolumeOff } from 'lucide-react';
 import { TbRewindBackward10, TbRewindForward10 } from "react-icons/tb";
+import { MdSpeed } from "react-icons/md";
+import { FaClosedCaptioning } from "react-icons/fa6";
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactPlayer from 'react-player';
-import { formatTime } from './utils';
+import { formatTime, parseVTT } from './utils';
 import screenfull from 'screenfull';
 import Slider from './components/Slider';
 
@@ -32,7 +35,8 @@ const ReactBitPlayer = () => {
         seeking: false,
         loadedSeconds: 0,
         playedSeconds: 0,
-        isLoading: true
+        isLoading: true,
+        currentSubtitleLanguage: 'None',
     };
 
     type PlayerState = Omit<typeof initialState, 'src'> & {
@@ -40,6 +44,7 @@ const ReactBitPlayer = () => {
     };
 
     const [state, setState] = useState<PlayerState>(initialState);
+    const [subtitlesData, setSubtitlesData] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
     const [currentSubtitles, setCurrentSubtitles] = useState<string[]>(['This is current subtitle example.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.']);
 
     useEffect(() => {
@@ -71,6 +76,11 @@ const ReactBitPlayer = () => {
             clearTimeout(timeout);
         };
     }, [state.playing]);
+
+    // useEffect(() => {
+    //     loadSubtitleFile("https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt", 'en')
+    // }, [])
+
 
     const load = (src?: string) => {
         setState(prevState => ({
@@ -193,15 +203,27 @@ const ReactBitPlayer = () => {
         // We only want to update time slider if we are not currently seeking
         if (!player || state.seeking) return;
 
-        console.log('onTimeUpdate', player.currentTime);
-
         if (!player.duration) return;
-
         setState(prevState => ({
             ...prevState,
             playedSeconds: player.currentTime,
             played: player.currentTime / player.duration,
         }));
+
+        // Update current subtitle line based on the current time
+        const currentSubtitleData = subtitlesData[state.currentSubtitleLanguage];
+        if (state.currentSubtitleLanguage !== "None" && currentSubtitleData) {
+            const timeDelay = 0.2 //to synchronize subtitles with video
+            const currentTime = player.currentTime + timeDelay;
+
+            //todo: need adjustment, this brings only one line, not effective for multiple lines
+            const subtitles = currentSubtitleData.filter((sub) =>
+                currentTime >= sub.start && currentTime <= sub.end
+            );
+            setCurrentSubtitles(subtitles.length > 0 ? subtitles.map(sub => sub.text) : []);
+        } else {
+            setCurrentSubtitles([]);
+        }
     };
 
     const handleEnded = () => {
@@ -246,12 +268,40 @@ const ReactBitPlayer = () => {
         }));
     }
 
-    const renderLoadButton = (src: string, label: string) => {
-        return (
-            <button type="button" onClick={() => load(src)}>
-                {label}
-            </button>
-        );
+    //fetch subtitle from url, parse it and set it to the state
+    const loadSubtitleFile = async (url: string, languageCode: string) => {
+        try {
+            // Ignore the thumbnails track. It is for displaying timestamp images, not subtitles.
+            if (languageCode == "thumbnails")
+                return;
+
+            //fetch data from subtitle url 
+            const response = await fetch(url);
+            const vttContent = await response.text();
+            if (!response.ok || !vttContent) {
+                if (process.env.NODE_ENV === 'development')
+                    console.warn(`Failed to load subtitles for ${languageCode} from ${url}`);
+                return;
+            }
+
+            //parse the vtt content to individual lines with start and end times
+            const parsedSubtitles = parseVTT(vttContent);
+            if (!parsedSubtitles || parsedSubtitles.length === 0) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`No valid subtitles found for ${languageCode} in ${url}`);
+                }
+                return;
+            }
+
+            //set the subtitles to the state
+            setSubtitlesData(prev => ({
+                ...prev,
+                [languageCode]: parsedSubtitles
+            }));
+
+        } catch (error) {
+            console.error(`Error loading subtitles for ${languageCode}:`, error);
+        }
     };
 
     const setPlayerRef = useCallback((player: HTMLVideoElement) => {
@@ -273,7 +323,8 @@ const ReactBitPlayer = () => {
         duration,
         playbackRate,
         pip,
-        isLoading
+        isLoading,
+        currentSubtitleLanguage
     } = state;
 
     if (!src)
@@ -358,13 +409,13 @@ const ReactBitPlayer = () => {
                 {/* Control buttons */}
                 <div className='control-buttons'>
                     <div className='control-left'>
-                        {playing ? <Pause onClick={handlePause} className='size-6 cursor-pointer' />
-                            : <Play onClick={handlePlay} className='size-4 sm:size-6 cursor-pointer' />
+                        {playing ? <Pause fill='white' onClick={handlePause} className='size-6 cursor-pointer' />
+                            : <Play fill='white' onClick={handlePlay} className='size-4 sm:size-6 cursor-pointer' />
                         }
 
                         {muted || volume == 0 ?
-                            <VolumeOff onClick={handleToggleMuted} className='size-4 sm:size-6 cursor-pointer' />
-                            : <Volume2 onClick={handleToggleMuted} className='size-4 sm:size-6 cursor-pointer' />
+                            <VolumeOff fill='white' onClick={handleToggleMuted} className='size-4 sm:size-6 cursor-pointer' />
+                            : <Volume2 fill='white' onClick={handleToggleMuted} className='size-4 sm:size-6 cursor-pointer' />
                         }
 
                         {/* Volume slider */}
@@ -382,6 +433,8 @@ const ReactBitPlayer = () => {
                     <div className='control-right'>
                         <TbRewindBackward10 onClick={handleSkipBackward} className='cursor-pointer size-4 sm:size-6' size={24} />
                         <TbRewindForward10 onClick={handleSkipForward} className='cursor-pointer size-4 sm:size-6' size={24} />
+                        <FaClosedCaptioning onClick={handleToggleControls} className='cursor-pointer size-4 sm:size-6' size={24} />
+                        <MdSpeed fill='white' onClick={handleToggleControls} className='cursor-pointer size-4 sm:size-6' size={24} />
 
                         {/* Subtitle selection dropdown */}
                         {/* {(tracks?.filter(t => t.lang !== "thumbnails") ?? []).length > 0 && <Select onValueChange={handleLanguageSelect} value={selectedLanguage}>
