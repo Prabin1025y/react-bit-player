@@ -1,4 +1,4 @@
-import { Captions, Expand, Loader2, Minimize, Pause, Play, Volume2, VolumeOff } from 'lucide-react';
+import { Expand, Loader2, Minimize, Pause, PictureInPicture, Play, Volume2, VolumeOff } from 'lucide-react';
 import { TbRewindBackward10, TbRewindForward10 } from "react-icons/tb";
 import { MdSpeed } from "react-icons/md";
 import { FaClosedCaptioning } from "react-icons/fa6";
@@ -6,18 +6,33 @@ import { FaClosedCaptioning } from "react-icons/fa6";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactPlayer from 'react-player';
 import { formatTime, parseVTT } from './utils';
-import screenfull from 'screenfull';
+// import screenfull from 'screenfull';
 import Slider from './components/Slider';
+import Table from './Table';
 
-// type ProgressProps = {
-//     played: number;
-//     playedSeconds: number;
-//     loaded: number;
-//     loadedSeconds: number;
-// }
+type ReactBitPlayerProps = {
+    src: string;
+    subtitles?: { lang: string, url: string }[];
+    seekBarColor?: string;
+    volumeBarColor?: string;
+    playbackRates?: string[];
+}
 
-const ReactBitPlayer = () => {
+const ReactBitPlayer = (
+    {
+        src: propSrc,
+        subtitles: propSubtitles = [],
+        seekBarColor = 'cyan',
+        volumeBarColor = 'yellow',
+        playbackRates = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0']
+    }: ReactBitPlayerProps
+) => {
     const playerRef = useRef<HTMLVideoElement | null>(null);
+
+    const captionButtonRef = useRef<HTMLSpanElement | null>(null);
+    const playbackButtonRef = useRef<HTMLSpanElement | null>(null);
+    const captionTableRef = useRef<HTMLDivElement | null>(null);
+    const playbackTableRef = useRef<HTMLDivElement | null>(null);
 
     const initialState = {
         src: undefined,
@@ -30,22 +45,43 @@ const ReactBitPlayer = () => {
         played: 0,
         loaded: 0,
         duration: 0,
-        playbackRate: 1.0,
         loop: false,
         seeking: false,
         loadedSeconds: 0,
         playedSeconds: 0,
         isLoading: true,
-        currentSubtitleLanguage: 'None',
+        isFullscreen: false,
+
+        showCaptionSelect: false,
+        showPlaybackSelect: false,
     };
 
     type PlayerState = Omit<typeof initialState, 'src'> & {
         src?: string;
     };
 
+    // const subtitles = [
+    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
+    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
+    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
+    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' },
+    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
+    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
+    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
+    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' },
+    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
+    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
+    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
+    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' }
+    // ];
+
+    const playBackRatesArray = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0'];
+
     const [state, setState] = useState<PlayerState>(initialState);
     const [subtitlesData, setSubtitlesData] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
     const [currentSubtitles, setCurrentSubtitles] = useState<string[]>(['This is current subtitle example.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.']);
+    const [currentSubtitleLanguage, setCurrentSubtitleLanguage] = useState<string>('None');
+    const [playbackRate, setPlaybackRate] = useState<string>('1.0');
 
     useEffect(() => {
         // Show/hide video controls on mouse or touch movement (desktop & mobile)
@@ -68,18 +104,31 @@ const ReactBitPlayer = () => {
         document.addEventListener('mousemove', showAndAutoHideControls);
         document.addEventListener('touchstart', showAndAutoHideControls);
         document.addEventListener('touchmove', showAndAutoHideControls);
+        document.addEventListener('click', hideTables);
 
         return () => {
             document.removeEventListener('mousemove', showAndAutoHideControls);
             document.removeEventListener('touchstart', showAndAutoHideControls);
             document.removeEventListener('touchmove', showAndAutoHideControls);
+            document.removeEventListener('click', hideTables);
             clearTimeout(timeout);
         };
     }, [state.playing]);
 
-    // useEffect(() => {
-    //     loadSubtitleFile("https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt", 'en')
-    // }, [])
+    useEffect(() => {
+
+        if (currentSubtitleLanguage == "None")
+            return;
+
+        if (!subtitlesData[currentSubtitleLanguage]) {
+            const subtitle = propSubtitles.find(sub => sub.lang === currentSubtitleLanguage);
+            if (subtitle) {
+                loadSubtitleFile(subtitle.url, currentSubtitleLanguage);
+            } else {
+                console.warn(`No subtitle found for language: ${currentSubtitleLanguage}`);
+            }
+        }
+    }, [currentSubtitleLanguage])
 
 
     const load = (src?: string) => {
@@ -92,31 +141,78 @@ const ReactBitPlayer = () => {
         }));
     };
 
-    const handlePlayPause = () => {
-        setState(prevState => ({ ...prevState, playing: !prevState.playing }));
+    const hideTables = (e: MouseEvent) => {
+        const target = e.target as Node;
+
+        // If click is outside the caption button, hide the caption table
+        if (captionButtonRef.current && !captionButtonRef.current.contains(target) && !captionTableRef.current?.contains(target)) {
+            setState(prevState => ({ ...prevState, showCaptionSelect: false }));
+        }
+        // If click is outside the playback button, hide the playback table
+        if (playbackButtonRef.current && !playbackButtonRef.current.contains(target) && !playbackTableRef.current?.contains(target)) {
+            setState(prevState => ({ ...prevState, showPlaybackSelect: false }));
+        }
+    }
+
+    function isIOS(): boolean {
+        return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+
+    const handleClickFullscreen = async () => {
+        const playerContainer = document.querySelector('.player-container');
+        if (!playerContainer) return;
+
+        if (!state.isFullscreen) {
+            if (isIOS()) {
+                return;
+            }
+
+            // Enter fullscreen
+            if (playerContainer.requestFullscreen) {
+                playerContainer.requestFullscreen();
+                setState(prevState => ({ ...prevState, isFullscreen: true }));
+            }
+
+            //try auto rotating screen to landscape mode in mobile devices
+            try {
+                const orientation = screen.orientation as ScreenOrientation & { lock: (orientation: string) => Promise<void> };
+                if (orientation) {
+                    await orientation.lock("landscape");
+                }
+            } catch (err) {
+                console.warn("Orientation lock failed:", err);
+            }
+        } else {
+            // Exit fullscreen
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                setState(prevState => ({ ...prevState, isFullscreen: false }));
+            }
+
+            //try auto unlocking screen orientation in mobile devices
+            try {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            } catch (err) {
+                console.warn("Orientation unlock failed:", err);
+            }
+        }
     };
 
-    const handleToggleControls = () => {
-        setState(prevState => ({ ...prevState, controls: !prevState.controls }));
+    const handlePlayPause = () => {
+        setState(prevState => ({ ...prevState, playing: !prevState.playing }));
     };
 
     const handleToggleMuted = () => {
         setState(prevState => ({ ...prevState, muted: !prevState.muted }));
     };
 
-    const handleSetPlaybackRate = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-        const buttonTarget = event.target as HTMLButtonElement;
-        setState(prevState => ({
-            ...prevState,
-            playbackRate: Number.parseFloat(`${buttonTarget.dataset.value}`)
-        }));
-    };
-
     const handleRateChange = () => {
         const player = playerRef.current;
         if (!player) return;
 
-        setState(prevState => ({ ...prevState, playbackRate: player.playbackRate }));
+        setPlaybackRate(player.playbackRate.toString());
     };
 
     const handleTogglePIP = () => {
@@ -167,23 +263,6 @@ const ReactBitPlayer = () => {
         setState(prevState => ({ ...prevState, playing: false }));
     };
 
-    // const handleSeekMouseDown = () => {
-    //     setState(prevState => ({ ...prevState, seeking: true }));
-    // };
-
-    // const handleSeekChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
-    //     const inputTarget = event.target as HTMLInputElement;
-    //     setState(prevState => ({ ...prevState, played: Number.parseFloat(inputTarget.value) }));
-    // };
-
-    // const handleSeekMouseUp = (event: React.SyntheticEvent<HTMLInputElement>) => {
-    //     const inputTarget = event.target as HTMLInputElement;
-    //     setState(prevState => ({ ...prevState, seeking: false }));
-    //     if (playerRef.current) {
-    //         playerRef.current.currentTime = Number.parseFloat(inputTarget.value) * playerRef.current.duration;
-    //     }
-    // };
-
     const handleProgress = () => {
         const player = playerRef.current;
         // We only want to update time slider if we are not currently seeking
@@ -211,8 +290,8 @@ const ReactBitPlayer = () => {
         }));
 
         // Update current subtitle line based on the current time
-        const currentSubtitleData = subtitlesData[state.currentSubtitleLanguage];
-        if (state.currentSubtitleLanguage !== "None" && currentSubtitleData) {
+        const currentSubtitleData = subtitlesData[currentSubtitleLanguage];
+        if (currentSubtitleLanguage !== "None" && currentSubtitleData) {
             const timeDelay = 0.2 //to synchronize subtitles with video
             const currentTime = player.currentTime + timeDelay;
 
@@ -239,10 +318,10 @@ const ReactBitPlayer = () => {
         setState(prevState => ({ ...prevState, duration: player.duration }));
     };
 
-    const handleClickFullscreen = () => {
-        const reactPlayer = document.querySelector('.player-container');
-        if (reactPlayer) screenfull.toggle(reactPlayer);
-    };
+    // const handleClickFullscreen = () => {
+    //     const reactPlayer = document.querySelector('.player-container');
+    //     if (reactPlayer) screenfull.toggle(reactPlayer);
+    // };
 
     const handleSeek = (value: number) => {
         const player = playerRef.current;
@@ -265,6 +344,22 @@ const ReactBitPlayer = () => {
             ...prevState,
             volume: value,
             muted: value === 0 ? true : false, // Mute if volume is 0
+        }));
+    }
+
+    const handleShowCaption = () => {
+        setState(prevState => ({
+            ...prevState,
+            showCaptionSelect: !prevState.showCaptionSelect,
+            showPlaybackSelect: false // Hide playback select when showing caption select
+        }));
+    }
+
+    const handleShowPlaybackTable = () => {
+        setState(prevState => ({
+            ...prevState,
+            showCaptionSelect: false,
+            showPlaybackSelect: !prevState.showPlaybackSelect
         }));
     }
 
@@ -321,26 +416,23 @@ const ReactBitPlayer = () => {
         played,
         loaded,
         duration,
-        playbackRate,
         pip,
         isLoading,
-        currentSubtitleLanguage
+        showCaptionSelect,
+        showPlaybackSelect,
+        isFullscreen
     } = state;
 
     if (!src)
         return (<div className="player-container">
             <div className='placeholder-container'>
-                <Play fill='white' className='placeholder-icon' size={60} onClick={() => load("https://bitdash-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8")} />
+                <Play fill='white' className='placeholder-icon' size={60} onClick={() => load(propSrc)} />
             </div>
         </div>)
 
 
     return (
         <div className="player-container">
-
-
-
-
             {isLoading && (
                 <div className="LoaderOverlay">
                     <Loader2 className="loader-class" />
@@ -357,7 +449,7 @@ const ReactBitPlayer = () => {
                 controls={false}
                 light={light}
                 loop={loop}
-                playbackRate={playbackRate}
+                playbackRate={Number(playbackRate)}
                 volume={volume}
                 muted={muted}
                 config={{
@@ -392,6 +484,16 @@ const ReactBitPlayer = () => {
                     ))}
                 </div>
             )}
+
+
+            {/* subtitle table */}
+            {showCaptionSelect && <div ref={captionTableRef} className='subtitle-table'>
+                <Table title='Subtitles' selected={currentSubtitleLanguage} setSelected={setCurrentSubtitleLanguage} data={["None", ...propSubtitles.map(d => d.lang)]} />
+            </div>}
+
+            {showPlaybackSelect && <div ref={playbackTableRef} className='subtitle-table'>
+                <Table title='Playback Speed' selected={playbackRate.toString()} setSelected={setPlaybackRate} data={playBackRatesArray} />
+            </div>}
 
             <div className={`control-container ${controls ? 'block' : 'hidden'}`}>
                 {/* Slider for duration of video */}
@@ -433,48 +535,15 @@ const ReactBitPlayer = () => {
                     <div className='control-right'>
                         <TbRewindBackward10 onClick={handleSkipBackward} className='cursor-pointer size-4 sm:size-6' size={24} />
                         <TbRewindForward10 onClick={handleSkipForward} className='cursor-pointer size-4 sm:size-6' size={24} />
-                        <FaClosedCaptioning onClick={handleToggleControls} className='cursor-pointer size-4 sm:size-6' size={24} />
-                        <MdSpeed fill='white' onClick={handleToggleControls} className='cursor-pointer size-4 sm:size-6' size={24} />
+                        <span ref={captionButtonRef}><FaClosedCaptioning onClick={handleShowCaption} className='cursor-pointer size-4 sm:size-6' size={24} /></span>
+                        <span ref={playbackButtonRef}><MdSpeed fill='white' onClick={handleShowPlaybackTable} className='cursor-pointer size-4 sm:size-6' size={24} /></span>
 
-                        {/* Subtitle selection dropdown */}
-                        {/* {(tracks?.filter(t => t.lang !== "thumbnails") ?? []).length > 0 && <Select onValueChange={handleLanguageSelect} value={selectedLanguage}>
-                                <SelectTrigger className="w-[130px] sm:w-[180px]">
-                                    <Captions className='cursor-pointer text-white size-4 sm:size-6' size={24} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Languages</SelectLabel>
-                                        <SelectItem key={"None"} value={"None"}>None</SelectItem>
-                                        {tracks?.map((track, index) => (track.lang !== "thumbnails" &&
-                                            <SelectItem key={track.lang + index} value={track.lang}>{track.lang}</SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                            } */}
-
-                        {/* Playback speed selection dropdown */}
-                        {/* <Select onValueChange={(value) => setPlaybackRate(parseFloat(value))} value={playbackRate.toString()}>
-                                <SelectTrigger className="w-[130px] sm:w-[180px]">
-                                    <MdSpeed className='cursor-pointer text-white size-4 sm:size-6' size={24} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Playback Speed</SelectLabel>
-                                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                                            <SelectItem key={rate} value={rate.toString()}>{rate}x</SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select> */}
-
-
-                        {/* <PictureInPicture className='cursor-pointer' size={24} /> */}
-                        {true ? <Minimize onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} /> : <Expand onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} />}
+                        <PictureInPicture onClick={handleTogglePIP} className='cursor-pointer' size={24} />
+                        {isFullscreen ? <Minimize onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} /> : <Expand onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} />}
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }
 
