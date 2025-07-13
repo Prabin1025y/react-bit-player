@@ -3,12 +3,12 @@ import { TbRewindBackward10, TbRewindForward10 } from "react-icons/tb";
 import { MdSpeed } from "react-icons/md";
 import { FaClosedCaptioning } from "react-icons/fa6";
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import ReactPlayer from 'react-player';
 import { formatTime, parseVTT } from './utils';
-// import screenfull from 'screenfull';
 import Slider from './components/Slider';
 import Table from './Table';
+import './global.css';
 
 type ReactBitPlayerProps = {
     src: string;
@@ -16,6 +16,8 @@ type ReactBitPlayerProps = {
     seekBarColor?: string;
     volumeBarColor?: string;
     playbackRates?: string[];
+    playing?: boolean;
+    videoRef?: RefObject<HTMLVideoElement | null>;
 }
 
 const ReactBitPlayer = (
@@ -24,7 +26,9 @@ const ReactBitPlayer = (
         subtitles: propSubtitles = [],
         seekBarColor = 'cyan',
         volumeBarColor = 'yellow',
-        playbackRates = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0']
+        playbackRates = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0'],
+        playing: propPlaying = true,
+        videoRef
     }: ReactBitPlayerProps
 ) => {
     const playerRef = useRef<HTMLVideoElement | null>(null);
@@ -33,11 +37,12 @@ const ReactBitPlayer = (
     const playbackButtonRef = useRef<HTMLSpanElement | null>(null);
     const captionTableRef = useRef<HTMLDivElement | null>(null);
     const playbackTableRef = useRef<HTMLDivElement | null>(null);
+    const playerContainerRef = useRef<HTMLDivElement | null>(null);
 
     const initialState = {
         src: undefined,
         pip: false,
-        playing: true,
+        playing: propPlaying,
         controls: false,
         light: false,
         volume: 1,
@@ -60,22 +65,23 @@ const ReactBitPlayer = (
         src?: string;
     };
 
-    // const subtitles = [
-    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
-    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
-    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
-    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' },
-    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
-    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
-    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
-    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' },
-    //     { lang: 'en', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/eng-2.vtt' },
-    //     { lang: 'es', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/spa-2.vtt' },
-    //     { lang: 'fr', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/fre-2.vtt' },
-    //     { lang: 'thumbnails', url: 'https://megacloudforest.xyz/subtitle/3edf71f0d248500f98f80dff818935b3/thumbnails.vtt' }
-    // ];
+    useEffect(() => {
+      setState(prevState => ({
+        ...prevState,
+        playing: propPlaying,
+      }));
+    
+      return () => {
+        setState(prevState => ({
+          ...prevState,
+          playing: false,
+        }));
+      };
+    }, [propPlaying]);
 
-    const playBackRatesArray = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0'];
+
+
+    const playBackRatesArray = playbackRates;
 
     const [state, setState] = useState<PlayerState>(initialState);
     const [subtitlesData, setSubtitlesData] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
@@ -103,13 +109,13 @@ const ReactBitPlayer = (
         // Attach both mouse and touch listeners for cross-device support
         document.addEventListener('mousemove', showAndAutoHideControls);
         document.addEventListener('touchstart', showAndAutoHideControls);
-        document.addEventListener('touchmove', showAndAutoHideControls);
+        document.addEventListener('touchend', showAndAutoHideControls);
         document.addEventListener('click', hideTables);
 
         return () => {
             document.removeEventListener('mousemove', showAndAutoHideControls);
             document.removeEventListener('touchstart', showAndAutoHideControls);
-            document.removeEventListener('touchmove', showAndAutoHideControls);
+            document.removeEventListener('touchend', showAndAutoHideControls);
             document.removeEventListener('click', hideTables);
             clearTimeout(timeout);
         };
@@ -129,6 +135,13 @@ const ReactBitPlayer = (
             }
         }
     }, [currentSubtitleLanguage])
+
+    useEffect(() => {
+        if(!playerRef.current || !videoRef) return;
+
+        videoRef.current = playerRef.current;
+    }, [playerRef.current])
+    
 
 
     const load = (src?: string) => {
@@ -159,12 +172,11 @@ const ReactBitPlayer = (
     }
 
     const handleClickFullscreen = async () => {
-        const playerContainer = document.querySelector('.player-container');
+        const playerContainer = playerContainerRef.current;;
         if (!playerContainer) return;
 
         if (!state.isFullscreen) {
             if (isIOS()) {
-                return;
             }
 
             // Enter fullscreen
@@ -432,7 +444,7 @@ const ReactBitPlayer = (
 
 
     return (
-        <div className="player-container">
+        <div ref={playerContainerRef} className="player-container">
             {isLoading && (
                 <div className="LoaderOverlay">
                     <Loader2 className="loader-class" />
@@ -479,6 +491,7 @@ const ReactBitPlayer = (
             {/* Subtitles Overlay */}
             {true && (
                 <div className="subtitle-parent">
+                    <p style={{color: "transparent", backgroundColor: "transparent"}}>.</p>
                     {currentSubtitles.map((subtitle, index) => (
                         <p key={index} dangerouslySetInnerHTML={{ __html: subtitle }} />
                     ))}
@@ -495,11 +508,11 @@ const ReactBitPlayer = (
                 <Table title='Playback Speed' selected={playbackRate.toString()} setSelected={setPlaybackRate} data={playBackRatesArray} />
             </div>}
 
-            <div className={`control-container ${controls ? 'block' : 'hidden'}`}>
+            <div className={`control-container ${controls ? 'flex' : 'hidden'}`}>
                 {/* Slider for duration of video */}
                 <div className="seeker-container">
                     <Slider
-                        color='cyan'
+                        color={seekBarColor}
                         defaultValue={0}
                         played={played ? played * 100 : 0}
                         loaded={loaded ? loaded * 100 : 0}
@@ -523,7 +536,7 @@ const ReactBitPlayer = (
                         {/* Volume slider */}
                         <div style={{ width: "100px" }}>
                             <Slider
-                                color='yellow'
+                                color={volumeBarColor}
                                 onValueChange={handleVolumeChange}
                                 defaultValue={0.8}
                                 maxValue={1}

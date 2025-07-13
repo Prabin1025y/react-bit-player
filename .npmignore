@@ -1,0 +1,27 @@
+# Ignore dev-only folders
+public/
+src/index.tsx
+src/App.tsx
+
+# Ignore config and build system files
+webpack.config.js
+webpack.dev.js
+webpack.prod.js
+.babelrc
+tsconfig.json
+npm-debug.log
+.vscode/
+
+# Ignore source files (we only publish compiled output)
+src/
+index.ts
+
+# Ignore HTML templates and lock files
+*.html
+package-lock.json
+yarn.lock
+
+# Ignore other non-essential files
+*.log
+*.env
+.DS_Store

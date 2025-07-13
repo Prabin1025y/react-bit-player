@@ -13,10 +13,13 @@ const Slider = ({ played = 0, loaded = 0, onValueChange, color = "red", defaultV
     const sliderRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    const calculatePercentage = (event: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+    const calculatePercentage = (event: React.MouseEvent<HTMLDivElement> | MouseEvent | React.TouchEvent<HTMLDivElement> | TouchEvent) => {
         if (sliderRef.current) {
             const rect = sliderRef.current.getBoundingClientRect();
-            const clickX = event.clientX - rect.left;
+            
+            // Handle both mouse and touch events 
+            const clientX = 'touches' in event ? event.touches[0]?.clientX : event.clientX;
+            const clickX = clientX - rect.left;
             const percentage = (clickX / rect.width) * maxValue;
 
             // Ensure percentage is between 0 and maxValue
@@ -59,12 +62,39 @@ const Slider = ({ played = 0, loaded = 0, onValueChange, color = "red", defaultV
         document.addEventListener('mouseup', handleMouseUp);
     };
 
+    const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+        setIsDragging(true);
+        const clampedPercentage = calculatePercentage(event);
+        if (onValueChange) {
+            onValueChange(clampedPercentage);
+        }
+
+        // Add global touch event listeners
+        const handleTouchMove = (e: TouchEvent) => {
+            e.preventDefault(); // Prevent scrolling while dragging
+            const percentage = calculatePercentage(e);
+            if (onValueChange) {
+                onValueChange(percentage);
+            }
+        };
+
+        const handleTouchEnd = () => {
+            setIsDragging(false);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+        };
+
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd);
+    };
+
     return (
         <div
             ref={sliderRef}
             className='slider-parent cursor-pointer'
             onClick={handleSliderClick}
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
         >
             <div
                 className='slider-loaded'

@@ -1,21 +1,48 @@
 {
+  "name": "react-bit-player",
+  "version": "1.0.3",
+  "description": "A React video player component with advanced features",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "react",
+    "video",
+    "player",
+    "component"
+  ],
+  "author": "Prabin Acharya",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Prabin1025y/react-bit-player"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
   "dependencies": {
     "lucide-react": "^0.525.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react-bit-player": "^1.0.2",
     "react-icons": "^5.5.0",
-    "react-player": "^3.1.0",
-    "screenfull": "^6.0.2"
+    "react-player": "^3.1.0"
   },
   "scripts": {
-    "start": "webpack serve --mode development",
-    "build": "webpack --mode production"
+    "start": "webpack serve --config webpack.dev.js --mode development",
+    "build": "npm run clean && webpack --config webpack.prod.js && npx tsc --emitDeclarationOnly",
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
+    "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "babel-loader": "^10.0.0",
     "css-loader": "^7.1.2",
