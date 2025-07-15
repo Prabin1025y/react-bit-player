@@ -1,4 +1,4 @@
-import { Expand, Loader2, Minimize, Pause, PictureInPicture, Play, Volume2, VolumeOff } from 'lucide-react';
+import { Expand, FastForward, Loader2, Minimize, Pause, PictureInPicture, Play, Volume2, VolumeOff } from 'lucide-react';
 import { TbRewindBackward10, TbRewindForward10 } from "react-icons/tb";
 import { MdSpeed } from "react-icons/md";
 import { FaClosedCaptioning } from "react-icons/fa6";
@@ -8,7 +8,7 @@ import ReactPlayer from 'react-player';
 import { formatTime, parseVTT } from './utils';
 import Slider from './components/Slider';
 import Table from './Table';
-import './global.css';
+// import './global.css';
 
 type ReactBitPlayerProps = {
     src: string;
@@ -39,6 +39,8 @@ const ReactBitPlayer = (
     const playbackTableRef = useRef<HTMLDivElement | null>(null);
     const playerContainerRef = useRef<HTMLDivElement | null>(null);
 
+    const skipIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const initialState = {
         src: undefined,
         pip: false,
@@ -66,17 +68,17 @@ const ReactBitPlayer = (
     };
 
     useEffect(() => {
-      setState(prevState => ({
-        ...prevState,
-        playing: propPlaying,
-      }));
-    
-      return () => {
         setState(prevState => ({
-          ...prevState,
-          playing: false,
+            ...prevState,
+            playing: propPlaying,
         }));
-      };
+
+        return () => {
+            setState(prevState => ({
+                ...prevState,
+                playing: false,
+            }));
+        };
     }, [propPlaying]);
 
 
@@ -85,9 +87,20 @@ const ReactBitPlayer = (
 
     const [state, setState] = useState<PlayerState>(initialState);
     const [subtitlesData, setSubtitlesData] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
-    const [currentSubtitles, setCurrentSubtitles] = useState<string[]>(['This is current subtitle example.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.', 'This is another subtitle line.']);
+    const [currentSubtitles, setCurrentSubtitles] = useState<string[]>([]);
     const [currentSubtitleLanguage, setCurrentSubtitleLanguage] = useState<string>('None');
     const [playbackRate, setPlaybackRate] = useState<string>('1.0');
+    const [timeStampData, setTimeStampData] = useState<{
+        isMouseInSeekbar: boolean;
+        leftValue: number;
+    }>({
+        isMouseInSeekbar: false,
+        leftValue: 0,
+    });
+    const [skipIndicatorInfo, setSkipIndicatorInfo] = useState<{forward: boolean, backward: boolean}>({
+        forward: false,
+        backward: false,
+    });
 
     useEffect(() => {
         // Show/hide video controls on mouse or touch movement (desktop & mobile)
@@ -136,13 +149,7 @@ const ReactBitPlayer = (
         }
     }, [currentSubtitleLanguage])
 
-    useEffect(() => {
-        if(!playerRef.current || !videoRef) return;
-
-        videoRef.current = playerRef.current;
-    }, [playerRef.current])
     
-
 
     const load = (src?: string) => {
         setState(prevState => ({
@@ -241,6 +248,20 @@ const ReactBitPlayer = (
         } else {
             player.currentTime = player.duration - 1; // Prevent going beyond duration
         }
+
+        showSkipIndicator('forward');
+    }
+
+    const showSkipIndicator = (type: 'forward' | 'backward') => {
+        setSkipIndicatorInfo({ forward: false, backward: false });
+        if(skipIndicatorTimeoutRef.current)
+            clearTimeout(skipIndicatorTimeoutRef.current);
+
+        setSkipIndicatorInfo({ forward: type === 'forward', backward: type === 'backward' });
+
+        skipIndicatorTimeoutRef.current = setTimeout(() => {
+            setSkipIndicatorInfo({ forward: false, backward: false });
+        }, 1000);
     }
 
     const handleSkipBackward = () => {
@@ -253,25 +274,15 @@ const ReactBitPlayer = (
         } else {
             player.currentTime = 0; // Prevent going below 0
         }
+
+        showSkipIndicator('backward');
     };
 
     const handlePlay = () => {
-        console.log('onPlay');
         setState(prevState => ({ ...prevState, playing: true }));
     };
 
-    const handleEnterPictureInPicture = () => {
-        console.log('onEnterPictureInPicture');
-        setState(prevState => ({ ...prevState, pip: true }));
-    };
-
-    const handleLeavePictureInPicture = () => {
-        console.log('onLeavePictureInPicture');
-        setState(prevState => ({ ...prevState, pip: false }));
-    };
-
     const handlePause = () => {
-        console.log('onPause');
         setState(prevState => ({ ...prevState, playing: false }));
     };
 
@@ -280,7 +291,6 @@ const ReactBitPlayer = (
         // We only want to update time slider if we are not currently seeking
         if (!player || state.seeking || !player.buffered?.length) return;
 
-        console.log('onProgress');
 
         setState(prevState => ({
             ...prevState,
@@ -318,7 +328,6 @@ const ReactBitPlayer = (
     };
 
     const handleEnded = () => {
-        console.log('onEnded');
         setState(prevState => ({ ...prevState, playing: prevState.loop }));
     };
 
@@ -326,21 +335,15 @@ const ReactBitPlayer = (
         const player = playerRef.current;
         if (!player) return;
 
-        console.log('onDurationChange', player.duration);
         setState(prevState => ({ ...prevState, duration: player.duration }));
     };
 
-    // const handleClickFullscreen = () => {
-    //     const reactPlayer = document.querySelector('.player-container');
-    //     if (reactPlayer) screenfull.toggle(reactPlayer);
-    // };
 
     const handleSeek = (value: number) => {
         const player = playerRef.current;
         if (!player) return;
 
         // Convert value (0-100) to seconds based on the video's duration
-        // player.pause();
         const newTime = (value / 100) * player.duration;
         player.currentTime = newTime;
 
@@ -411,10 +414,26 @@ const ReactBitPlayer = (
         }
     };
 
+    const handleSeekMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+        const targetLeft = (e.target as HTMLDivElement).getBoundingClientRect().left;
+        const diffDistanceInPixels = e.clientX - targetLeft;
+        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels });
+    }
+    const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const targetLeft = (e.target as HTMLDivElement).getBoundingClientRect().left;
+        const diffDistanceInPixels = e.clientX - targetLeft;
+        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels });
+    }
+
+    const handleSeekMouseLeave = () => {
+        setTimeStampData(prev => ({ ...prev, isMouseInSeekbar: false }));
+    }
+
     const setPlayerRef = useCallback((player: HTMLVideoElement) => {
         if (!player) return;
         playerRef.current = player;
-        console.log(player);
+        if(videoRef)
+            videoRef.current = player;
     }, []);
 
     const {
@@ -444,12 +463,34 @@ const ReactBitPlayer = (
 
 
     return (
-        <div ref={playerContainerRef} className="player-container">
+        <div ref={playerContainerRef} className={`${!controls && 'cursor-none'} player-container`}>
             {isLoading && (
                 <div className="LoaderOverlay">
                     <Loader2 className="loader-class" />
                 </div>
             )}
+
+            {!playing && !isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                    <Play fill='white' size={100} className='text-white opacity-80' />
+                </div>
+            )}
+
+            {skipIndicatorInfo.forward && (
+                <div className="absolute text-white right-48 animate-ping top-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none z-20">
+                    <FastForward fill='white' size={60} />
+                    <p>+10 sec</p>
+                </div>
+            )}
+
+            {skipIndicatorInfo.backward && (
+                <div className="absolute text-white left-48 animate-ping top-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none z-20">
+                    <FastForward fill='white' size={60} className='rotate-180' />
+                    <p>-10 sec</p>
+                </div>
+            )}
+
+
 
             <ReactPlayer
                 ref={setPlayerRef}
@@ -472,9 +513,6 @@ const ReactBitPlayer = (
                         color: 'ffffff'
                     }
                 }}
-                // onPlay={handlePlay}
-                onEnterPictureInPicture={handleEnterPictureInPicture}
-                onLeavePictureInPicture={handleLeavePictureInPicture}
                 onReady={() => setState(prevState => ({ ...prevState, isLoading: false }))}
                 onWaiting={() => setState(prevState => ({ ...prevState, isLoading: true }))}
                 onCanPlay={() => setState(prevState => ({ ...prevState, isLoading: false }))}
@@ -491,12 +529,14 @@ const ReactBitPlayer = (
             {/* Subtitles Overlay */}
             {true && (
                 <div className="subtitle-parent">
-                    <p style={{color: "transparent", backgroundColor: "transparent"}}>.</p>
+                    <p className='control-saver'>.</p>
                     {currentSubtitles.map((subtitle, index) => (
                         <p key={index} dangerouslySetInnerHTML={{ __html: subtitle }} />
                     ))}
                 </div>
             )}
+
+
 
 
             {/* subtitle table */}
@@ -510,7 +550,8 @@ const ReactBitPlayer = (
 
             <div className={`control-container ${controls ? 'flex' : 'hidden'}`}>
                 {/* Slider for duration of video */}
-                <div className="seeker-container">
+                <div onMouseEnter={handleSeekMouseEnter} onMouseMove={handleSeekMouseMove} onMouseLeave={handleSeekMouseLeave} className="seeker-container relative">
+                    <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} absolute bg-white text-black px-1 py-1 rounded-sm text-xs border border-black bottom-3 -translate-x-1/2`}>22:00</div>
                     <Slider
                         color={seekBarColor}
                         defaultValue={0}

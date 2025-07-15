@@ -23,7 +23,7 @@
 .player-container{
     position: relative;
     background-color: black;
-    width: 100%;
+    /* width: 100%; */
     aspect-ratio: 16/9;
 }
 
@@ -207,6 +207,13 @@
     z-index: 20;
 }
 
+.control-saver{
+    color: transparent;
+    background-color: transparent !important;
+    text-shadow: none;
+    -webkit-text-stroke: 1px transparent;
+}
+
 
 /* tables */
 .table-container{
@@ -272,3 +279,16 @@
 .block{
     display: block;
 }
+
+
+
+/* Animation
+.skip-animation{
+    animation: ping1 2s cubic-bezier(0, 0, 0.2, 1) infinite; ;
+}
+@keyframes ping1 {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+} */
