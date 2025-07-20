@@ -93,9 +93,11 @@ const ReactBitPlayer = (
     const [timeStampData, setTimeStampData] = useState<{
         isMouseInSeekbar: boolean;
         leftValue: number;
+        timeInSeconds: number;
     }>({
         isMouseInSeekbar: false,
         leftValue: 0,
+        timeInSeconds: 0,
     });
     const [skipIndicatorInfo, setSkipIndicatorInfo] = useState<{forward: boolean, backward: boolean}>({
         forward: false,
@@ -415,14 +417,27 @@ const ReactBitPlayer = (
     };
 
     const handleSeekMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        const targetLeft = (e.target as HTMLDivElement).getBoundingClientRect().left;
+        const targetLeft = (e.currentTarget as HTMLDivElement).getBoundingClientRect().left;
+
+        const width = (e.currentTarget as HTMLDivElement).getBoundingClientRect().width;
+        const fraction = (e.clientX - targetLeft) / width;
+        const timeInSeconds = fraction * state.duration;
+        // console.log({ timeInSeconds });
+        // console.log(e.currentTarget)
+
         const diffDistanceInPixels = e.clientX - targetLeft;
-        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels });
+        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels, timeInSeconds: timeInSeconds });
     }
+
     const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        const targetLeft = (e.target as HTMLDivElement).getBoundingClientRect().left;
+        const targetLeft = (e.currentTarget as HTMLDivElement).getBoundingClientRect().left;
+
+        const width = (e.currentTarget as HTMLDivElement).getBoundingClientRect().width;
+        const fraction = (e.clientX - targetLeft) / width;
+        const timeInSeconds = fraction * state.duration;
+
         const diffDistanceInPixels = e.clientX - targetLeft;
-        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels });
+        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels, timeInSeconds: timeInSeconds });
     }
 
     const handleSeekMouseLeave = () => {
@@ -551,7 +566,7 @@ const ReactBitPlayer = (
             <div className={`control-container ${controls ? 'flex' : 'hidden'}`}>
                 {/* Slider for duration of video */}
                 <div onMouseEnter={handleSeekMouseEnter} onMouseMove={handleSeekMouseMove} onMouseLeave={handleSeekMouseLeave} className="seeker-container relative">
-                    <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} absolute bg-white text-black px-1 py-1 rounded-sm text-xs border border-black bottom-3 -translate-x-1/2`}>22:00</div>
+                    <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} absolute bg-white text-black px-1 py-1 rounded-sm text-xs border border-black bottom-3 -translate-x-1/2`}>{formatTime(timeStampData.timeInSeconds)}</div>
                     <Slider
                         color={seekBarColor}
                         defaultValue={0}
