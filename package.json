@@ -1,7 +1,7 @@
 {
   "name": "react-bit-player",
-  "version": "1.0.3",
-  "description": "A React video player component with advanced features",
+  "version": "1.0.6",
+  "description": "A React video player component with prebuilt UI and subtitle support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -34,7 +34,8 @@
   "scripts": {
     "start": "webpack serve --config webpack.dev.js --mode development",
     "build": "npm run clean && webpack --config webpack.prod.js && npx tsc --emitDeclarationOnly",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "tailwind": "npx @tailwindcss/cli -i ./src/input.css -o ./src/output.css --watch"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

@@ -8,7 +8,8 @@ import ReactPlayer from 'react-player';
 import { formatTime, parseVTT } from './utils';
 import Slider from './components/Slider';
 import Table from './Table';
-// import './global.css';
+import './global.css';
+import './output.css';
 
 type ReactBitPlayerProps = {
     src: string;
@@ -26,7 +27,7 @@ const ReactBitPlayer = (
         subtitles: propSubtitles = [],
         seekBarColor = 'cyan',
         volumeBarColor = 'yellow',
-        playbackRates = ['0.5', '0.75', '1.0', '1.25', '1.5', '2.0'],
+        playbackRates = [ '0.5', '0.75', '1.0', '1.25', '1.5', '2.0' ],
         playing: propPlaying = true,
         videoRef
     }: ReactBitPlayerProps
@@ -57,7 +58,7 @@ const ReactBitPlayer = (
         loadedSeconds: 0,
         playedSeconds: 0,
         isLoading: true,
-        isFullscreen: false,
+        // isFullscreen: false,
 
         showCaptionSelect: false,
         showPlaybackSelect: false,
@@ -67,6 +68,7 @@ const ReactBitPlayer = (
         src?: string;
     };
 
+    // Initialize state with the initial state
     useEffect(() => {
         setState(prevState => ({
             ...prevState,
@@ -79,18 +81,19 @@ const ReactBitPlayer = (
                 playing: false,
             }));
         };
-    }, [propPlaying]);
+    }, [ propPlaying ]);
 
 
 
     const playBackRatesArray = playbackRates;
 
-    const [state, setState] = useState<PlayerState>(initialState);
-    const [subtitlesData, setSubtitlesData] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
-    const [currentSubtitles, setCurrentSubtitles] = useState<string[]>([]);
-    const [currentSubtitleLanguage, setCurrentSubtitleLanguage] = useState<string>('None');
-    const [playbackRate, setPlaybackRate] = useState<string>('1.0');
-    const [timeStampData, setTimeStampData] = useState<{
+    const [ state, setState ] = useState<PlayerState>(initialState);
+    const [ isFullScreen, setIsFullScreen ] = useState<boolean>(false);
+    const [ subtitlesData, setSubtitlesData ] = useState<Record<string, { start: number; end: number; text: string }[]>>({});
+    const [ currentSubtitles, setCurrentSubtitles ] = useState<string[]>([]);
+    const [ currentSubtitleLanguage, setCurrentSubtitleLanguage ] = useState<string>('None');
+    const [ playbackRate, setPlaybackRate ] = useState<string>('1.0');
+    const [ timeStampData, setTimeStampData ] = useState<{
         isMouseInSeekbar: boolean;
         leftValue: number;
         timeInSeconds: number;
@@ -99,13 +102,13 @@ const ReactBitPlayer = (
         leftValue: 0,
         timeInSeconds: 0,
     });
-    const [skipIndicatorInfo, setSkipIndicatorInfo] = useState<{forward: boolean, backward: boolean}>({
+    const [ skipIndicatorInfo, setSkipIndicatorInfo ] = useState<{ forward: boolean, backward: boolean }>({
         forward: false,
         backward: false,
     });
 
+    // Show/hide video controls on mouse or touch movement (desktop & mobile)
     useEffect(() => {
-        // Show/hide video controls on mouse or touch movement (desktop & mobile)
         // On desktop: listen for mousemove
         // On mobile: listen for touchstart/touchmove
         // Controls auto-hide after 3s of inactivity while playing
@@ -134,14 +137,15 @@ const ReactBitPlayer = (
             document.removeEventListener('click', hideTables);
             clearTimeout(timeout);
         };
-    }, [state.playing]);
+    }, [ state.playing ]);
 
+    //Load current subtitle if it is not already loaded
     useEffect(() => {
 
         if (currentSubtitleLanguage == "None")
             return;
 
-        if (!subtitlesData[currentSubtitleLanguage]) {
+        if (!subtitlesData[ currentSubtitleLanguage ]) {
             const subtitle = propSubtitles.find(sub => sub.lang === currentSubtitleLanguage);
             if (subtitle) {
                 loadSubtitleFile(subtitle.url, currentSubtitleLanguage);
@@ -149,10 +153,26 @@ const ReactBitPlayer = (
                 console.warn(`No subtitle found for language: ${currentSubtitleLanguage}`);
             }
         }
-    }, [currentSubtitleLanguage])
+    }, [ currentSubtitleLanguage ])
 
-    
+    // Sync fullscreen state with document's fullscreen change events
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            const isNowFullscreen = !!document.fullscreenElement;
+            setIsFullScreen(isNowFullscreen);
+        };
 
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
+
+
+
+    // Initial load function
     const load = (src?: string) => {
         setState(prevState => ({
             ...prevState,
@@ -160,9 +180,11 @@ const ReactBitPlayer = (
             played: 0,
             loaded: 0,
             pip: false,
+            // isLoading: false
         }));
     };
 
+    // Hide caption and playback tables when clicking outside
     const hideTables = (e: MouseEvent) => {
         const target = e.target as Node;
 
@@ -176,50 +198,55 @@ const ReactBitPlayer = (
         }
     }
 
+    // Function to check if the device is iOS
     function isIOS(): boolean {
         return /iPhone|iPad|iPod/i.test(navigator.userAgent);
     }
 
-    const handleClickFullscreen = async () => {
-        const playerContainer = playerContainerRef.current;;
+    // Function to handle fullscreen toggle
+    const handleEnterFullScreen = async () => {
+        const playerContainer = playerContainerRef.current;
         if (!playerContainer) return;
 
-        if (!state.isFullscreen) {
-            if (isIOS()) {
-            }
-
-            // Enter fullscreen
-            if (playerContainer.requestFullscreen) {
-                playerContainer.requestFullscreen();
-                setState(prevState => ({ ...prevState, isFullscreen: true }));
-            }
-
-            //try auto rotating screen to landscape mode in mobile devices
-            try {
-                const orientation = screen.orientation as ScreenOrientation & { lock: (orientation: string) => Promise<void> };
-                if (orientation) {
-                    await orientation.lock("landscape");
-                }
-            } catch (err) {
-                console.warn("Orientation lock failed:", err);
-            }
-        } else {
-            // Exit fullscreen
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-                setState(prevState => ({ ...prevState, isFullscreen: false }));
-            }
-
-            //try auto unlocking screen orientation in mobile devices
-            try {
-                if (screen.orientation && screen.orientation.unlock) {
-                    screen.orientation.unlock();
-                }
-            } catch (err) {
-                console.warn("Orientation unlock failed:", err);
-            }
+        if (isIOS() && (playerContainer as any).webkitRequestFullscreen) {
+            (playerContainer as any).webkitRequestFullscreen();
+            return;
         }
-    };
+        // Enter fullscreen
+        if (playerContainer.requestFullscreen) {
+            console.log("Requesting fullscreen");
+            await playerContainer.requestFullscreen();
+            setIsFullScreen(true);
+        }
+
+        //try auto rotating screen to landscape mode in mobile devices
+        try {
+            const orientation = screen.orientation as ScreenOrientation & { lock: (orientation: string) => Promise<void> };
+            if (orientation) {
+                await orientation.lock("landscape");
+            }
+        } catch (err) {
+            console.warn("Orientation lock failed:", err);
+        }
+    }
+
+    const handleExitFullScreen = async () => {
+        console.log("Fullscreen disabled");
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            await document.exitFullscreen();
+        }
+
+        //try auto unlocking screen orientation in mobile devices
+        try {
+            if (screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock();
+            }
+        } catch (err) {
+            console.warn("Orientation unlock failed:", err);
+        }
+    }
+
 
     const handlePlayPause = () => {
         setState(prevState => ({ ...prevState, playing: !prevState.playing }));
@@ -256,7 +283,7 @@ const ReactBitPlayer = (
 
     const showSkipIndicator = (type: 'forward' | 'backward') => {
         setSkipIndicatorInfo({ forward: false, backward: false });
-        if(skipIndicatorTimeoutRef.current)
+        if (skipIndicatorTimeoutRef.current)
             clearTimeout(skipIndicatorTimeoutRef.current);
 
         setSkipIndicatorInfo({ forward: type === 'forward', backward: type === 'backward' });
@@ -314,7 +341,7 @@ const ReactBitPlayer = (
         }));
 
         // Update current subtitle line based on the current time
-        const currentSubtitleData = subtitlesData[currentSubtitleLanguage];
+        const currentSubtitleData = subtitlesData[ currentSubtitleLanguage ];
         if (currentSubtitleLanguage !== "None" && currentSubtitleData) {
             const timeDelay = 0.2 //to synchronize subtitles with video
             const currentTime = player.currentTime + timeDelay;
@@ -408,7 +435,7 @@ const ReactBitPlayer = (
             //set the subtitles to the state
             setSubtitlesData(prev => ({
                 ...prev,
-                [languageCode]: parsedSubtitles
+                [ languageCode ]: parsedSubtitles
             }));
 
         } catch (error) {
@@ -416,20 +443,11 @@ const ReactBitPlayer = (
         }
     };
 
-    const handleSeekMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        const targetLeft = (e.currentTarget as HTMLDivElement).getBoundingClientRect().left;
+    // Handle mouse enter, move, and leave events for the seek bar
+    const handleSeekMouseEnterAndMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        //do nothing if the target is a thumbnail
+        if ((e.target as HTMLElement).classList.contains('thumbnail')) return;
 
-        const width = (e.currentTarget as HTMLDivElement).getBoundingClientRect().width;
-        const fraction = (e.clientX - targetLeft) / width;
-        const timeInSeconds = fraction * state.duration;
-        // console.log({ timeInSeconds });
-        // console.log(e.currentTarget)
-
-        const diffDistanceInPixels = e.clientX - targetLeft;
-        setTimeStampData({ isMouseInSeekbar: true, leftValue: diffDistanceInPixels, timeInSeconds: timeInSeconds });
-    }
-
-    const handleSeekMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const targetLeft = (e.currentTarget as HTMLDivElement).getBoundingClientRect().left;
 
         const width = (e.currentTarget as HTMLDivElement).getBoundingClientRect().width;
@@ -447,7 +465,7 @@ const ReactBitPlayer = (
     const setPlayerRef = useCallback((player: HTMLVideoElement) => {
         if (!player) return;
         playerRef.current = player;
-        if(videoRef)
+        if (videoRef)
             videoRef.current = player;
     }, []);
 
@@ -466,8 +484,133 @@ const ReactBitPlayer = (
         isLoading,
         showCaptionSelect,
         showPlaybackSelect,
-        isFullscreen
     } = state;
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Don't trigger shortcuts if user is typing in an input
+            if ((e.target instanceof Element) && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                return;
+            }
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    setState(prevState => ({
+                        ...prevState,
+                        playing: !prevState.playing
+                    }));
+                    break;
+
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    // Seek backward 10 seconds
+                    handleSkipBackward();
+                    break;
+
+                case 'ArrowRight':
+                    e.preventDefault();
+                    // Seek forward 10 seconds
+                    handleSkipForward();
+                    break;
+
+                case 'ArrowUp':
+                    e.preventDefault();
+                    // Volume up
+                    const newVolumeUp = Math.min(1, volume + 0.1);
+                    setState(prev => ({ ...prev, volume: newVolumeUp, muted: false }));
+                    break;
+
+                case 'ArrowDown':
+                    e.preventDefault();
+                    // Volume down
+                    const newVolumeDown = Math.max(0, volume - 0.1);
+                    setState(prev => ({ ...prev, volume: newVolumeDown }));
+                    break;
+
+                case 'KeyM':
+                    e.preventDefault();
+                    setState(prev => ({ ...prev, muted: !prev.muted }));
+                    break;
+
+                case 'KeyF':
+                    e.preventDefault();
+                    if (!!document.fullscreenElement)
+                        handleExitFullScreen();
+                    else
+                        handleEnterFullScreen();
+                    break;
+
+                // case 'KeyC':
+                //     e.preventDefault();
+                //     setSelectedLanguage("None");
+                //     break;
+
+                case 'Comma':
+                    if (e.shiftKey) {
+                        e.preventDefault();
+                        // Decrease playback speed
+                        const currentIndex = playbackRates.indexOf(playbackRate);
+                        if (currentIndex > 0) {
+                            setPlaybackRate(playbackRates[ currentIndex - 1 ]);
+                        }
+                    }
+                    break;
+
+                case 'Period':
+                    if (e.shiftKey) {
+                        e.preventDefault();
+                        // Increase playback speed
+                        const currentIndex = playbackRates.indexOf(playbackRate);
+                        if (currentIndex < playbackRates.length - 1) {
+                            setPlaybackRate(playbackRates[ currentIndex + 1 ]);
+                        }
+                    }
+                    break;
+
+                case 'Digit0':
+                case 'Digit1':
+                case 'Digit2':
+                case 'Digit3':
+                case 'Digit4':
+                case 'Digit5':
+                case 'Digit6':
+                case 'Digit7':
+                case 'Digit8':
+                case 'Digit9':
+                    e.preventDefault();
+                    if (!playerRef.current)
+                        return;
+                    // Jump to percentage of video (0-9 = 0%-90%)
+                    const percentage = parseInt(e.code.slice(-1)) / 10;
+                    playerRef.current.currentTime = playerRef.current?.duration * percentage;
+                    break;
+
+                case 'Home':
+                    e.preventDefault();
+                    // Go to beginning
+                    if (!playerRef.current)
+                        return;
+                    playerRef.current.currentTime = 0;
+                    break;
+
+                case 'End':
+                    e.preventDefault();
+                    // Go to end
+                    if (!playerRef.current)
+                        return;
+                    playerRef.current.currentTime = playerRef.current.duration;
+                    break;
+
+                default:
+                    break;
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     if (!src)
         return (<div className="player-container">
@@ -531,6 +674,7 @@ const ReactBitPlayer = (
                 onReady={() => setState(prevState => ({ ...prevState, isLoading: false }))}
                 onWaiting={() => setState(prevState => ({ ...prevState, isLoading: true }))}
                 onCanPlay={() => setState(prevState => ({ ...prevState, isLoading: false }))}
+                onPlaying={() => setState(prevState => ({ ...prevState, isLoading: false }))}
                 onRateChange={handleRateChange}
                 onEnded={handleEnded}
                 onTimeUpdate={handleTimeUpdate}
@@ -556,7 +700,7 @@ const ReactBitPlayer = (
 
             {/* subtitle table */}
             {showCaptionSelect && <div ref={captionTableRef} className='subtitle-table'>
-                <Table title='Subtitles' selected={currentSubtitleLanguage} setSelected={setCurrentSubtitleLanguage} data={["None", ...propSubtitles.map(d => d.lang)]} />
+                <Table title='Subtitles' selected={currentSubtitleLanguage} setSelected={setCurrentSubtitleLanguage} data={[ "None", ...propSubtitles.map(d => d.lang) ]} />
             </div>}
 
             {showPlaybackSelect && <div ref={playbackTableRef} className='subtitle-table'>
@@ -565,8 +709,12 @@ const ReactBitPlayer = (
 
             <div className={`control-container ${controls ? 'flex' : 'hidden'}`}>
                 {/* Slider for duration of video */}
-                <div onMouseEnter={handleSeekMouseEnter} onMouseMove={handleSeekMouseMove} onMouseLeave={handleSeekMouseLeave} className="seeker-container relative">
-                    <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} absolute bg-white text-black px-1 py-1 rounded-sm text-xs border border-black bottom-3 -translate-x-1/2`}>{formatTime(timeStampData.timeInSeconds)}</div>
+                <div onMouseEnter={handleSeekMouseEnterAndMove} onMouseMove={handleSeekMouseEnterAndMove} onMouseLeave={handleSeekMouseLeave} className="seeker-container relative">
+                    <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} thumbnail absolute bg-white text-black px-1 py-1 rounded-sm text-xs border border-black bottom-3 -translate-x-1/2`}>{formatTime(timeStampData.timeInSeconds)}</div>
+                    {/* <div style={{ left: `${timeStampData.leftValue}px` }} className={`${timeStampData.isMouseInSeekbar ? 'opacity-100' : 'opacity-0'} thumbnail absolute w-36 h-24 bg-white text-black overflow-hidden rounded-sm text-xs border border-black bottom-3 -translate-x-1/2 flex flex-col`}>
+                        <img className='thumbnail w-full h-[calc(100%-20px)]' src="https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png" alt="hello" />
+                        <p className='thumbnail h-5 w-full flex justify-center items-center'>{formatTime(timeStampData.timeInSeconds)}</p>
+                    </div> */}
                     <Slider
                         color={seekBarColor}
                         defaultValue={0}
@@ -608,7 +756,7 @@ const ReactBitPlayer = (
                         <span ref={playbackButtonRef}><MdSpeed fill='white' onClick={handleShowPlaybackTable} className='cursor-pointer size-4 sm:size-6' size={24} /></span>
 
                         <PictureInPicture onClick={handleTogglePIP} className='cursor-pointer' size={24} />
-                        {isFullscreen ? <Minimize onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} /> : <Expand onClick={handleClickFullscreen} className='cursor-pointer size-4 sm:size-6' size={24} />}
+                        {isFullScreen ? <Minimize onClick={handleExitFullScreen} className='cursor-pointer size-4 sm:size-6' size={24} /> : <Expand onClick={handleEnterFullScreen} className='cursor-pointer size-4 sm:size-6' size={24} />}
                     </div>
                 </div>
             </div>
