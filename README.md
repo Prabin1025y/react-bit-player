@@ -1,99 +1,167 @@
-# react-bit-player
+<h1 align='center'>
+  ReactBitPlayer
+</h1>
 
-A custom React video player component built with TypeScript, React, and Webpack.  
-Designed for easy integration into React projects with full TypeScript support.
+<p align='center'>
+  <a href='https://www.npmjs.com/package/react-player'><img src='https://img.shields.io/npm/v/react-bit-player.svg' alt='Latest npm version'></a>
+  <a href='https://github.com/Prabin1025y/react-bit-player/blob/main/LICENSE'><img src='https://img.shields.io/npm/l/react-bit-player.svg' alt='Test Coverage'></a>
+</p>
+
+<p align='center'>
+  An easy-to-use React video player component built on top of  <a href="https://www.npmjs.com/package/react-player">ReactPlayer</a>, featuring a beautiful UI with modern controls. Perfect for embedding YouTube, Vimeo, or local videos with minimal setup.
+</p>
 
 ---
 
-## Features
+### 🔗 Live Demo
 
-- Simple and customizable React video player component  
-- Supports subtitles, custom controls, and multiple video formats  
-- TypeScript typings included  
-- Peer dependencies on React and ReactDOM to avoid bundle duplication
+Check out the live demo here: 
+***Coming soon*** 
+<!-- 👉 [Example Website](https://your-example-site.com)-->
 
----
+See the player in action and explore its features in a real-world setup!
 
-## Installation
+
+### Usage
 
 ```bash
 npm install react-bit-player
 ```
 
-or with yarn:
-
-```bash
-yarn add react-bit-player
-```
-
----
-
-## Usage
-
-```tsx
+```jsx
 import React from 'react';
 import ReactBitPlayer from 'react-bit-player';
 
-function App() {
-  return (
-    <div>
-      <h1>My Video Player</h1>
-      <ReactBitPlayer
-        url="https://example.com/video.mp4"
-        
-        // Add other supported props here
-      />
-    </div>
-  );
-}
+const  App  = () => {
+const  playerRef  =  useRef<HTMLVideoElement  |  null>(null)
 
-export default App;
+return (
+	<div style={{ width:  '50vw', height:  '40vh' }}>
+		<ReactBitPlayer 
+			src='https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8' 
+			ref={playerRef} 
+		/>
+	</div>
+)};
+export  default  App;
+
 ```
 
----
+### Props
+> Since this is wrapped around ReactPlayer, you have access to all ReactPlayer props along with few exclusive to ReactBitPlayer
 
-## Peer Dependencies
+### ReactBitPlayer Exclusive Props
+Prop | Description | Default
+---- | ----------- | -------
+`subtitles` | An array of subtitles tracks of type `Subtitle (see type section)` | `[]`
+`seekBarColor` | Color for played section of seekbar. Loaded color also derives from here. Accepts Css color notation. | `cyan`
+`volumeBarColor` | Color for volume bar. | `yellow`
+`playbackRates` | An array of all playback rates available. | `[ '0.5', '0.75', '1.0', '1.25', '1.5', '2.0' ]`
+`ref` | A ref to internal video element of type `RefObject<HTMLVideoElement  |  null>`. See example usage above. | `null`
 
-Make sure your project has compatible versions of React and ReactDOM installed:
+#### Subtitle type
+Subtitle prop should be an array of type 
+```js
+lang: "string",
+url: "string"
+```
+Also only vtt type is supported for now.
+```jsx
+const captions = [
+	{lang: "English", url: "https://path-to-english-subtitle.vtt"},
+	{lang: "Spanish", url: "https://path-to-spanish-subtitle.vtt"},
+]
 
-```json
-"peerDependencies": {
-  "react": "^18.0.0 || ^19.0.0",
-  "react-dom": "^18.0.0 || ^19.0.0"
-}
+<ReactBitPlayer src="xyz.m3u8" subtitles={captions}/>
 ```
 
----
+### ReactPlayer Props (Copied from <a href="https://www.npmjs.com/package/react-player">ReactPlayer</a> docs)
 
-## Development
+Prop | Description | Default
+---- | ----------- | -------
+`src` | The url of a video or song to play | `undefined`
+`playing` | Set to `true` or `false` to play or pause the media | `undefined`
+`preload` | Applies the `preload` attribute where supported | `undefined`
+`playsInline` | Applies the `playsInline` attribute where supported | `false`
+`crossOrigin` | Applies the `crossOrigin` attribute where supported | `undefined`
+`loop` | Set to `true` or `false` to loop the media | `false`
+`volume` | Set the volume of the player, between `0` and `1`<br/>&nbsp; ◦ &nbsp;`null` uses default volume on all players [`#357`](https://github.com/cookpete/react-player/issues/357) | `null`
+`muted` | Mutes the player | `false`
+`playbackRate` | Set the playback rate of the player<br />&nbsp; ◦ &nbsp;Only supported by YouTube, Wistia, and file paths | `1`
+`width` | Set the width of the player | `320px`
+`height` | Set the height of the player | `180px`
+`style` | Add [inline styles](https://facebook.github.io/react/tips/inline-styles.html) to the root element | `{}`
+`light` | Set to `true` to show just the video thumbnail, which loads the full player on click<br />&nbsp; ◦ &nbsp;Pass in an image URL to override the preview image | `false`
+`fallback` | Element or component to use as a fallback if you are using lazy loading | `null`
+`wrapper` | Element or component to use as the container element | `null`
+`playIcon` | Element or component to use as the play icon in light mode
+`previewTabIndex` | Set the tab index to be used on light mode | `0`
 
-To build the package locally:
+#### Callback props
 
-```bash
-npm run build
+Callback props take a function that gets fired on various player events:
+
+Prop | Description
+---- | -----------
+`onClickPreview` | Called when user clicks the `light` mode preview
+`onReady` | Called when media is loaded and ready to play. If `playing` is set to `true`, media will play immediately
+`onStart` | Called when media starts playing
+`onPlay` | Called when the `playing` prop is set to true
+`onPlaying` | Called when media actually starts playing
+`onProgress` | Called when media data is loaded
+`onTimeUpdate` | Called when the media's current time changes
+`onDurationChange` | Callback containing duration of the media, in seconds
+`onPause` | Called when media is paused
+`onWaiting` | Called when media is buffering and waiting for more data
+`onSeeking` | Called when media is seeking
+`onSeeked` | Called when media has finished seeking
+`onRateChange` | Called when playback rate of the player changed<br />&nbsp; ◦ &nbsp;Only supported by YouTube, Vimeo ([if enabled](https://developer.vimeo.com/player/sdk/reference#playbackratechange)), Wistia, and file paths
+`onEnded` | Called when media finishes playing<br />&nbsp; ◦ &nbsp;Does not fire when `loop` is set to `true`
+`onError` | Called when an error occurs whilst attempting to play media
+`onEnterPictureInPicture` | Called when entering picture-in-picture mode
+`onLeavePictureInPicture` | Called when leaving picture-in-picture mode
+
+#### Config prop
+
+There is a single `config` prop to override settings for each type of player:
+
+```jsx
+<ReactPlayer
+  src={src}
+  config={{
+    youtube: {
+      color: 'white',
+    },
+  }}
+/>
 ```
 
-This compiles the TypeScript declaration files and bundles the component for publishing.
+Settings for each player live under different keys:
 
-To run the development server:
+Key | Options
+--- | -------
+`youtube` | https://developers.google.com/youtube/player_parameters#Parameters
+`vimeo` | https://developer.vimeo.com/player/sdk/embed
+`hls` | https://github.com/video-dev/hls.js/blob/master/docs/API.md#fine-tuning
 
-```bash
-npm start
-```
 
----
+### Supported media
 
-## License
+* [Supported file types](https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats) are playing using [`<video>`](https://developer.mozilla.org/en/docs/Web/HTML/Element/video) or [`<audio>`](https://developer.mozilla.org/en/docs/Web/HTML/Element/audio) elements
+* HLS streams are played using [`hls.js`](https://github.com/video-dev/hls.js)
+* DASH streams are played using [`dash.js`](https://github.com/Dash-Industry-Forum/dash.js)
+* Mux videos use the [`<mux-player>`](https://github.com/muxinc/elements/blob/main/packages/mux-player/README.md) element
+* YouTube videos use the [YouTube iFrame Player API](https://developers.google.com/youtube/iframe_api_reference)
+* Vimeo videos use the [Vimeo Player API](https://developer.vimeo.com/player/sdk)
+* Wistia videos use the [Wistia Player API](https://wistia.com/doc/player-api)
 
-MIT © Prabin Acharya
 
----
+### 🤝 Contributing
 
-## Repository
+Contributions are welcome!  
+If you'd like to improve this project, feel free to fork the repo, make your changes, and open a pull request.
 
-[GitHub Repository](https://github.com/Prabin1025y/react-bit-player)
+For major changes, please open an issue first to discuss what you'd like to change.
 
----
-
-Feel free to contribute or open issues!
-
+Let's build better together! 🚀
+<a href="https://github.com/Prabin1025y/react-bit-player">Contribute here</a>

@@ -10,7 +10,7 @@ const App: React.FC = () => {
     //     console.log("Slider value changed:", value);
     // }
     return <div className='pt-5 pl-5' style={{ width: "80%" }}>
-        <ReactBitPlayer src='https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8' subtitles={[ { lang: 'en', url: 'https://raw.githubusercontent.com/1c7/vtt-test-file/refs/heads/master/vtt%20files/3.%20Contain%20Comment.vtt' } ]} />
+        {/* <ReactBitPlayer /> */}
         {/* <Table/> */}
         {/* <Slider
             maxValue={50}

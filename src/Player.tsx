@@ -5,11 +5,14 @@ import { FaClosedCaptioning } from "react-icons/fa6";
 
 import React, { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import ReactPlayer from 'react-player';
+import type { ReactPlayerProps } from 'react-player/dist/types';
 import { formatTime, parseVTT } from './utils';
 import Slider from './components/Slider';
 import Table from './Table';
 import './global.css';
 import './output.css';
+
+type UnUsedProps = Omit<ReactPlayerProps, "src" | "playing" | "volume" | "loop" | "muted" | "pip" | "controls" | "playbackRate" | "onReady" | "onWaiting" | "onCanPlay" | "onPlaying" | "onRateChange" | "onEnded" | "onTimeUpdate" | "onProgress" | "onDurationChange">;
 
 type ReactBitPlayerProps = {
     src: string;
@@ -18,8 +21,23 @@ type ReactBitPlayerProps = {
     volumeBarColor?: string;
     playbackRates?: string[];
     playing?: boolean;
-    videoRef?: RefObject<HTMLVideoElement | null>;
-}
+    ref?: RefObject<HTMLVideoElement | null>;
+    loop?: boolean;
+    volume?: number;
+    muted?: boolean;
+    style?: React.CSSProperties;
+    className?: string;
+
+    onReady?: () => void;
+    onEnded?: React.ReactEventHandler<HTMLVideoElement>;
+    onPlaying?: React.ReactEventHandler<HTMLVideoElement>;
+    onProgress?: React.ReactEventHandler<HTMLVideoElement>;
+    onDurationChange?: React.ReactEventHandler<HTMLVideoElement>;
+    onRateChange?: React.ReactEventHandler<HTMLVideoElement>;
+    onCanPlay?: React.ReactEventHandler<HTMLVideoElement>;
+    onWaiting?: React.ReactEventHandler<HTMLVideoElement>;
+    onTimeUpdate?: React.ReactEventHandler<HTMLVideoElement>;
+} & UnUsedProps;
 
 const ReactBitPlayer = (
     {
@@ -29,9 +47,29 @@ const ReactBitPlayer = (
         volumeBarColor = 'yellow',
         playbackRates = [ '0.5', '0.75', '1.0', '1.25', '1.5', '2.0' ],
         playing: propPlaying = true,
-        videoRef
+        ref: refProp,
+        loop: propLoop = false,
+        volume: propVolume = 1,
+        muted: propMuted = false,
+        style: propStyle = {},
+        className: propClassName = '',
+
+        onReady: onReadyProp,
+        onEnded: onEndedProp,
+        onPlaying: onPlayingProp,
+        onProgress: onProgressProp,
+        onDurationChange: onDurationChangeProp,
+        onRateChange: onRateChangeProp,
+        onCanPlay: onCanPlayProp,
+        onWaiting: onWaitingProp,
+        onTimeUpdate: onTimeUpdateProp,
+        ...restProps
     }: ReactBitPlayerProps
 ) => {
+
+
+
+
     const playerRef = useRef<HTMLVideoElement | null>(null);
 
     const captionButtonRef = useRef<HTMLSpanElement | null>(null);
@@ -48,12 +86,12 @@ const ReactBitPlayer = (
         playing: propPlaying,
         controls: false,
         light: false,
-        volume: 1,
-        muted: false,
+        volume: propVolume,
+        muted: propMuted,
         played: 0,
         loaded: 0,
         duration: 0,
-        loop: false,
+        loop: propLoop,
         seeking: false,
         loadedSeconds: 0,
         playedSeconds: 0,
@@ -73,15 +111,21 @@ const ReactBitPlayer = (
         setState(prevState => ({
             ...prevState,
             playing: propPlaying,
+            loop: propLoop,
+            volume: propVolume,
+            muted: propMuted,
         }));
 
         return () => {
             setState(prevState => ({
                 ...prevState,
                 playing: false,
+                loop: false,
+                volume: 1,
+                muted: false,
             }));
         };
-    }, [ propPlaying ]);
+    }, [ propPlaying, propLoop, propVolume, propMuted ]);
 
 
 
@@ -256,7 +300,8 @@ const ReactBitPlayer = (
         setState(prevState => ({ ...prevState, muted: !prevState.muted }));
     };
 
-    const handleRateChange = () => {
+    const handleRateChange = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onRateChangeProp && onRateChangeProp(e);
         const player = playerRef.current;
         if (!player) return;
 
@@ -315,7 +360,8 @@ const ReactBitPlayer = (
         setState(prevState => ({ ...prevState, playing: false }));
     };
 
-    const handleProgress = () => {
+    const handleProgress = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onProgressProp && onProgressProp(e);
         const player = playerRef.current;
         // We only want to update time slider if we are not currently seeking
         if (!player || state.seeking || !player.buffered?.length) return;
@@ -328,7 +374,9 @@ const ReactBitPlayer = (
         }));
     };
 
-    const handleTimeUpdate = () => {
+    const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onTimeUpdateProp && onTimeUpdateProp(e);
+
         const player = playerRef.current;
         // We only want to update time slider if we are not currently seeking
         if (!player || state.seeking) return;
@@ -356,17 +404,38 @@ const ReactBitPlayer = (
         }
     };
 
-    const handleEnded = () => {
+    const handleEnded = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onEndedProp && onEndedProp(e);
         setState(prevState => ({ ...prevState, playing: prevState.loop }));
     };
 
-    const handleDurationChange = () => {
+    const handleDurationChange = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onDurationChangeProp && onDurationChangeProp(e);
+
         const player = playerRef.current;
         if (!player) return;
-
         setState(prevState => ({ ...prevState, duration: player.duration }));
     };
 
+    const onReadyHandler = () => {
+        onReadyProp && onReadyProp();
+        setState(prevState => ({ ...prevState, isLoading: false }));
+    }
+
+    const onWaitingHandler = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onWaitingProp && onWaitingProp(e);
+        setState(prevState => ({ ...prevState, isLoading: true }));
+    }
+
+    const onCanPlayHandler = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onCanPlayProp && onCanPlayProp(e);
+        setState(prevState => ({ ...prevState, isLoading: false }));
+    }
+
+    const onPlayingHandler = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        onPlayingProp && onPlayingProp(e);
+        setState(prevState => ({ ...prevState, isLoading: false }));
+    }
 
     const handleSeek = (value: number) => {
         const player = playerRef.current;
@@ -465,8 +534,8 @@ const ReactBitPlayer = (
     const setPlayerRef = useCallback((player: HTMLVideoElement) => {
         if (!player) return;
         playerRef.current = player;
-        if (videoRef)
-            videoRef.current = player;
+        if (refProp !== undefined)
+            refProp.current = player;
     }, []);
 
     const {
@@ -621,7 +690,7 @@ const ReactBitPlayer = (
 
 
     return (
-        <div ref={playerContainerRef} className={`${!controls && 'cursor-none'} player-container`}>
+        <div ref={playerContainerRef} style={propStyle} className={`${!controls && 'cursor-none'} ${propClassName} player-container`}>
             {isLoading && (
                 <div className="LoaderOverlay">
                     <Loader2 className="loader-class" />
@@ -663,23 +732,16 @@ const ReactBitPlayer = (
                 playbackRate={Number(playbackRate)}
                 volume={volume}
                 muted={muted}
-                config={{
-                    youtube: {
-                        color: 'white'
-                    },
-                    vimeo: {
-                        color: 'ffffff'
-                    }
-                }}
-                onReady={() => setState(prevState => ({ ...prevState, isLoading: false }))}
-                onWaiting={() => setState(prevState => ({ ...prevState, isLoading: true }))}
-                onCanPlay={() => setState(prevState => ({ ...prevState, isLoading: false }))}
-                onPlaying={() => setState(prevState => ({ ...prevState, isLoading: false }))}
+                onReady={onReadyHandler}
+                onWaiting={onWaitingHandler}
+                onCanPlay={onCanPlayHandler}
+                onPlaying={onPlayingHandler}
                 onRateChange={handleRateChange}
                 onEnded={handleEnded}
                 onTimeUpdate={handleTimeUpdate}
                 onProgress={handleProgress}
                 onDurationChange={handleDurationChange}
+                {...restProps}
             />
 
             {/* PlayPauseClick Sensor */}
@@ -764,4 +826,4 @@ const ReactBitPlayer = (
     )
 }
 
-export default ReactBitPlayer
+export default ReactBitPlayer;

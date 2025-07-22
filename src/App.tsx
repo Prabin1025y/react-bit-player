@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactBitPlayer from '../src/Player';
+import ReactBitPlayer from './Player';
 
 const App: React.FC = () => {
 
@@ -13,7 +13,7 @@ const App: React.FC = () => {
         <ReactBitPlayer src='https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8' subtitles={[ { lang: 'en', url: 'https://raw.githubusercontent.com/1c7/vtt-test-file/refs/heads/master/vtt%20files/3.%20Contain%20Comment.vtt' } ]} />
         {/* <Table/> */}
         {/* <Slider
-            maxValue={50}
+            maxValue={50} 
             onValueChange={handleChange}
             played={played}
         /> */}
