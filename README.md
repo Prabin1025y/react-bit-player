@@ -165,3 +165,18 @@ For major changes, please open an issue first to discuss what you'd like to chan
 
 Let's build better together! 🚀
 <a href="https://github.com/Prabin1025y/react-bit-player">Contribute here</a>
+
+## Contributors ✨
+
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/Prabin1025y"><img src="https://avatars.githubusercontent.com/u/109074721?v=4" width="80px;" alt="" style="border-radius:50%" /><br /><sub><b>Prabin1025y</b></sub></a><br />
+  </tr>
+</table>
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
